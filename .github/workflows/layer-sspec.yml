@@ -1,0 +1,53 @@
+name: "L4: SuperSpeculator"
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "layers/L4-sspec/**"
+      - "modules/**"
+  push:
+    branches: [main]
+    paths:
+      - "layers/L4-sspec/**"
+      - "modules/**"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [stgx, prdx]
+    uses: ./.github/workflows/_terraform-plan-env.yml
+    with:
+      layer_path: layers/L4-sspec
+      env_name: ${{ matrix.env }}
+      backend_container: l4-sspec-${{ matrix.env }}
+    secrets: inherit
+
+  apply-stgx:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/_terraform-apply-env.yml
+    with:
+      layer_path: layers/L4-sspec
+      env_name: stgx
+      backend_container: l4-sspec-stgx
+      environment: sspec-stgx
+    secrets: inherit
+
+  apply-prdx:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [apply-stgx]
+    uses: ./.github/workflows/_terraform-apply-env.yml
+    with:
+      layer_path: layers/L4-sspec
+      env_name: prdx
+      backend_container: l4-sspec-prdx
+      environment: sspec-prdx
+    secrets: inherit

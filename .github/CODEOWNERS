@@ -1,0 +1,16 @@
+# Infrastructure code owners
+# Changes to any layer or module require review from the platform team
+
+# All infrastructure changes
+/layers/          @platform-team
+/modules/         @platform-team
+
+# Bootstrap layer - restricted to admins
+/layers/L0-bootstrap/   @platform-admins
+
+# CI/CD workflows
+/.github/workflows/     @platform-team
+
+# Root configuration files
+/*.hcl            @platform-team
+/.terraform-version  @platform-team

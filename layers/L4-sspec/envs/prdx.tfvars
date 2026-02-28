@@ -1,0 +1,17 @@
+env                        = "prdx"
+subscription_id            = "REPLACE_ME"
+hub_subscription_id        = "REPLACE_ME"
+state_resource_group_name  = "platform-cicd-use1-rg-001"
+state_storage_account_name = "platformcicduse1st001"
+location                   = "eastus"
+domain                     = "REPLACE_ME"
+app_subdomain              = "sspec"
+spoke_address_space        = ["10.3.0.0/22"]
+aca_subnet_prefix          = "10.3.0.0/23"
+pe_subnet_prefix           = "10.3.2.0/26"
+container_image            = "sspec:latest"
+container_cpu              = "1.0"
+container_memory           = "2Gi"
+min_replicas               = 2
+max_replicas               = 10
+target_port                = 8080

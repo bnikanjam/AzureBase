@@ -1,0 +1,214 @@
+name: Drift Detection
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday at 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+jobs:
+  detect-drift:
+    name: "Drift: ${{ matrix.layer.name }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        layer:
+          - name: L0-bootstrap
+            path: layers/L0-bootstrap
+          - name: L1-governance
+            path: layers/L1-governance
+          - name: L1-management
+            path: layers/L1-management
+          - name: L2-connectivity
+            path: layers/L2-connectivity
+          - name: L2-cloudflare
+            path: layers/L2-cloudflare
+          - name: L3-shared
+            path: layers/L3-shared
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.layer.path }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read Terraform version
+        id: tf-version
+        run: echo "version=$(cat ${GITHUB_WORKSPACE}/.terraform-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.tf-version.outputs.version }}
+
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Plan (Drift Check)
+        id: plan
+        run: terraform plan -detailed-exitcode -no-color 2>&1 | tee plan_output.txt
+        continue-on-error: true
+
+      - name: Create issue on drift
+        if: steps.plan.outcome == 'failure'
+        uses: actions/github-script@v7
+        env:
+          LAYER_NAME: ${{ matrix.layer.name }}
+          LAYER_PATH: ${{ matrix.layer.path }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const layerName = process.env.LAYER_NAME;
+            const layerPath = process.env.LAYER_PATH;
+
+            let planOutput = '';
+            try {
+              planOutput = fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/${layerPath}/plan_output.txt`, 'utf8');
+            } catch (e) {
+              planOutput = 'Could not read plan output.';
+            }
+
+            const truncated = planOutput.length > 60000
+              ? planOutput.substring(0, 60000) + '\n\n... (truncated)'
+              : planOutput;
+
+            const title = `Drift detected: ${layerName}`;
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'drift',
+            });
+
+            const existing = issues.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Drift still present as of ${new Date().toISOString()}.\n\n\`\`\`hcl\n${truncated}\n\`\`\``,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                labels: ['drift', 'infrastructure'],
+                body: `## Configuration Drift Detected\n\n**Layer:** \`${layerPath}\`\n**Detected:** ${new Date().toISOString()}\n\n### Plan Output\n\`\`\`hcl\n${truncated}\n\`\`\`\n\n### Resolution\nReview the drift and either:\n1. Apply the current Terraform configuration to reconcile\n2. Update Terraform to match the actual state`,
+              });
+            }
+
+  detect-drift-env:
+    name: "Drift: ${{ matrix.layer.name }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        layer:
+          - name: L4-sspec-stgx
+            path: layers/L4-sspec
+            env_name: stgx
+            backend_container: l4-sspec-stgx
+          - name: L4-sspec-prdx
+            path: layers/L4-sspec
+            env_name: prdx
+            backend_container: l4-sspec-prdx
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.layer.path }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read Terraform version
+        id: tf-version
+        run: echo "version=$(cat ${GITHUB_WORKSPACE}/.terraform-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.tf-version.outputs.version }}
+
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init -backend-config="container_name=${{ matrix.layer.backend_container }}"
+
+      - name: Terraform Plan (Drift Check)
+        id: plan
+        run: terraform plan -var-file=envs/${{ matrix.layer.env_name }}.tfvars -detailed-exitcode -no-color 2>&1 | tee plan_output.txt
+        continue-on-error: true
+
+      - name: Create issue on drift
+        if: steps.plan.outcome == 'failure'
+        uses: actions/github-script@v7
+        env:
+          LAYER_NAME: ${{ matrix.layer.name }}
+          LAYER_PATH: ${{ matrix.layer.path }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const layerName = process.env.LAYER_NAME;
+            const layerPath = process.env.LAYER_PATH;
+
+            let planOutput = '';
+            try {
+              planOutput = fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/${layerPath}/plan_output.txt`, 'utf8');
+            } catch (e) {
+              planOutput = 'Could not read plan output.';
+            }
+
+            const truncated = planOutput.length > 60000
+              ? planOutput.substring(0, 60000) + '\n\n... (truncated)'
+              : planOutput;
+
+            const title = `Drift detected: ${layerName}`;
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'drift',
+            });
+
+            const existing = issues.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Drift still present as of ${new Date().toISOString()}.\n\n\`\`\`hcl\n${truncated}\n\`\`\``,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                labels: ['drift', 'infrastructure'],
+                body: `## Configuration Drift Detected\n\n**Layer:** \`${layerPath}\`\n**Detected:** ${new Date().toISOString()}\n\n### Plan Output\n\`\`\`hcl\n${truncated}\n\`\`\`\n\n### Resolution\nReview the drift and either:\n1. Apply the current Terraform configuration to reconcile\n2. Update Terraform to match the actual state`,
+              });
+            }
