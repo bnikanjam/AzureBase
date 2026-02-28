@@ -52,6 +52,18 @@ variable "firewall_private_ip" {
   type        = string
 }
 
+variable "private_dns_zone_ids" {
+  description = "Map of private DNS zone names to their resource IDs for VNet linking."
+  type        = map(string)
+  default     = {}
+}
+
+variable "dns_zone_resource_group_name" {
+  description = "Resource group name where private DNS zones are hosted (hub RG)."
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Tags to apply to all spoke resources."
   type        = map(string)

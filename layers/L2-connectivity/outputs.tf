@@ -37,3 +37,13 @@ output "private_dns_zone_ids" {
   description = "Map of private DNS zone names to their resource IDs."
   value       = { for k, v in azurerm_private_dns_zone.zones : k => v.id }
 }
+
+output "firewall_name" {
+  description = "Name of the Azure Firewall."
+  value       = azurerm_firewall.hub.name
+}
+
+output "firewall_resource_group_name" {
+  description = "Resource group name containing the Azure Firewall."
+  value       = azurerm_resource_group.hub.name
+}

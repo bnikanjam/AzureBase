@@ -1,0 +1,17 @@
+env                        = "stgx"
+subscription_id            = "REPLACE_ME"
+hub_subscription_id        = "REPLACE_ME"
+state_resource_group_name  = "platform-cicd-use1-rg-001"
+state_storage_account_name = "platformcicduse1st001"
+location                   = "eastus"
+domain                     = "REPLACE_ME"
+app_subdomain              = "sspec-staging"
+spoke_address_space        = ["10.2.0.0/22"]
+aca_subnet_prefix          = "10.2.0.0/23"
+pe_subnet_prefix           = "10.2.2.0/26"
+container_image            = "sspec:latest"
+container_cpu              = "0.5"
+container_memory           = "1Gi"
+min_replicas               = 1
+max_replicas               = 3
+target_port                = 8080

@@ -19,10 +19,10 @@ Format: `{app}-{env}-{region4}-{resource-abb}-{instance}`
 - **app:** lowercase short name (hub, myapp, platform)
 - **env:** 4-char code (prdx, stgx, devx, cicd)
 - **region:** 2-char country + 2-char id (use1, usw2, euw1)
-- **resource:** CAF abbreviation (vnet, afw, rg, kv, ca, cae, st, nsg)
+- **resource:** CAF abbreviation (vnet, afw, rg, kv, ca, cae, st, nsg, cr, pep)
 - **instance:** 3-digit (001, 002)
 
-Storage accounts and key vaults strip hyphens and truncate to 24 chars.
+Storage accounts and key vaults strip hyphens and truncate to 24 chars. Container registries (cr) strip hyphens and truncate to 50 chars.
 
 ## Layer Dependencies
 
@@ -31,8 +31,37 @@ L0-bootstrap (state storage + OIDC)
 ├── L1-governance (mgmt groups + policies)
 ├── L1-management (logging + monitoring)
 │   └── L2-connectivity (hub networking + firewall)
-│       └── L2-cloudflare (DNS + WAF)
+│       ├── L2-cloudflare (DNS + WAF)
+│       └── L3-shared (shared ACR + spoke VNet)
+│           └── L4-sspec (SuperSpeculator app — env separation via tfvars)
 ```
+
+## Workload Layers
+
+- **L3-shared:** Shared Azure Container Registry and spoke VNet peered to hub. Dependencies: L0, L2-connectivity.
+- **L4-sspec:** SuperSpeculator application stack (Container App Environment, Container Apps, private endpoints). Uses per-environment tfvars (stgx.tfvars, prdx.tfvars) against a single config. Dependencies: L0, L1-management, L2-connectivity, L2-cloudflare, L3-shared.
+
+## New Modules
+
+- **container-app-env:** Provisions an Azure Container Apps Environment with internal VNet integration
+- **container-app:** Deploys a Container App with ingress, secrets, and registry config
+- **private-endpoint:** Creates a private endpoint with DNS zone link for any supported resource
+
+## VNet Address Plan
+
+| VNet | CIDR |
+|------|------|
+| Hub | 10.0.0.0/16 |
+| Shared | 10.1.0.0/24 |
+| sspec-stgx | 10.2.0.0/22 |
+| sspec-prdx | 10.3.0.0/22 |
+
+## Onboarding a New App
+
+1. Copy `L4-sspec` as `L4-<appname>` and update `app_name`
+2. Assign a new address space in the VNet plan
+3. Add state containers to `L0-bootstrap`
+4. Create CI/CD workflow (copy `.github/workflows/layer-sspec.yml` and adapt)
 
 ## Provider Versions
 

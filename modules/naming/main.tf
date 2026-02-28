@@ -4,12 +4,13 @@ terraform {
 
 locals {
   # Resource types that require no hyphens and have character limits
-  no_hyphen_resources = toset(["st", "kv"])
+  no_hyphen_resources = toset(["st", "kv", "cr"])
 
   # Maximum character lengths for restricted resources
   max_lengths = {
     "st" = 24
     "kv" = 24
+    "cr" = 50
   }
 
   # Standard name with hyphens

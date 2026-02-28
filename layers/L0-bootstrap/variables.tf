@@ -28,6 +28,9 @@ variable "state_container_names" {
     "l1-management",
     "l2-connectivity",
     "l2-cloudflare",
+    "l3-shared",
+    "l4-sspec-stgx",
+    "l4-sspec-prdx",
   ]
 }
 
@@ -39,5 +42,7 @@ variable "service_principals" {
     governance   = "sp-tf-governance"
     management   = "sp-tf-management"
     connectivity = "sp-tf-connectivity"
+    shared       = "sp-tf-shared"
+    sspec        = "sp-tf-sspec"
   }
 }

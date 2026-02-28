@@ -134,3 +134,16 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
   use_remote_gateways          = false
   allow_virtual_network_access = true
 }
+
+# ---------------------------------------------------------------------------
+# Private DNS zone VNet links
+# ---------------------------------------------------------------------------
+
+resource "azurerm_private_dns_zone_virtual_network_link" "spoke" {
+  for_each              = var.private_dns_zone_ids
+  name                  = "${azurerm_virtual_network.spoke.name}-${replace(each.key, ".", "-")}-link"
+  resource_group_name   = var.dns_zone_resource_group_name
+  private_dns_zone_name = each.key
+  virtual_network_id    = azurerm_virtual_network.spoke.id
+  registration_enabled  = false
+}
