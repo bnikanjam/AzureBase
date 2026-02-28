@@ -36,12 +36,12 @@ L0-bootstrap (state storage + OIDC)
 
 ## Provider Versions
 
-- Terraform: >= 1.9, < 2.0
-- azurerm: ~> 4.0
-- azapi: ~> 2.0
-- azuread: ~> 3.0
-- cloudflare: ~> 5.0
-- alz: ~> 0.16
+- Terraform: 1.14.6
+- azurerm: 4.62.0
+- azapi: 2.8.0
+- azuread: 3.8.0
+- cloudflare: 5.17.0
+- alz: 0.20.2
 
 ## Commands
 

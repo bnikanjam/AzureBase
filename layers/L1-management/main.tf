@@ -50,7 +50,7 @@ resource "azurerm_resource_group" "management" {
 
 module "alz_management" {
   source  = "Azure/avm-ptn-alz-management/azurerm"
-  version = "~> 0.4"
+  version = "0.9.0"
 
   automation_account_name      = module.naming_aa.name
   location                     = azurerm_resource_group.management.location

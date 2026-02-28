@@ -19,7 +19,7 @@ data "terraform_remote_state" "bootstrap" {
 
 module "alz" {
   source  = "Azure/avm-ptn-alz/azurerm"
-  version = "~> 0.11"
+  version = "0.19.0"
 
   location          = var.location
   architecture_name = var.architecture_name
