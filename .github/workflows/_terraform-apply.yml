@@ -1,0 +1,80 @@
+name: Terraform Apply (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      layer_path:
+        description: "Path to the Terraform layer directory"
+        required: true
+        type: string
+      terraform_version:
+        description: "Terraform version to use (overrides .terraform-version)"
+        required: false
+        type: string
+        default: ""
+      environment:
+        description: "GitHub Environment for approval gates"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  apply:
+    name: Apply
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    concurrency:
+      group: terraform-apply-${{ inputs.layer_path }}
+      cancel-in-progress: false
+
+    defaults:
+      run:
+        working-directory: ${{ inputs.layer_path }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine Terraform version
+        id: tf-version
+        run: |
+          if [ -n "${{ inputs.terraform_version }}" ]; then
+            echo "version=${{ inputs.terraform_version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(cat ${GITHUB_WORKSPACE}/.terraform-version)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.tf-version.outputs.version }}
+
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: tfplan-*
+          path: ${{ inputs.layer_path }}
+          merge-multiple: true
+
+      - name: Terraform Apply
+        run: |
+          if [ -f tfplan ]; then
+            terraform apply -auto-approve tfplan
+          else
+            echo "::warning::No plan artifact found, running apply directly"
+            terraform apply -auto-approve
+          fi

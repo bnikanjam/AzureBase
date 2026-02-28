@@ -1,0 +1,34 @@
+name: "L1: Governance"
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "layers/L1-governance/**"
+      - "modules/**"
+  push:
+    branches: [main]
+    paths:
+      - "layers/L1-governance/**"
+      - "modules/**"
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/_terraform-plan.yml
+    with:
+      layer_path: layers/L1-governance
+    secrets: inherit
+
+  apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/_terraform-apply.yml
+    with:
+      layer_path: layers/L1-governance
+      environment: governance
+    secrets: inherit
